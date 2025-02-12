@@ -1,0 +1,16 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 60
+      arrivalRate: 1000
+  payload:
+    path: "large_data.csv"
+    fields:
+      - ID
+scenarios:
+  - flow:
+      - post:
+          url: "/topics/test"
+          json: 
+            ID: "{{ ID }}"
+            Name: "Test"
