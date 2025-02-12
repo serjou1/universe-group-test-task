@@ -1,5 +1,5 @@
 import express from 'express';
-import { createClient } from 'redis';
+import Redis from 'ioredis';
 
 import { PORT, REDIS_URL } from './config';
 
@@ -7,7 +7,7 @@ const app = express();
 
 app.use(express.json({ limit: '1mb' }));
 
-const redisClient = createClient({ url: REDIS_URL });
+const redisClient = new Redis(REDIS_URL);
 redisClient.on('error', err => console.log('Redis Client Error', err));
 
 app.post('/topics/:topic', (req, res) => {
@@ -25,19 +25,29 @@ app.get('/topics/:topic', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    redisClient.subscribe(topic, (message) => {
+    const redisSubscriber = redisClient.duplicate();
+    redisSubscriber.connect();
+
+    redisSubscriber.subscribe(topic, (message) => {
         res.write(message);
+        res.flushHeaders();
     });
 
     req.on('close', () => {
         console.log('Client disconnected');
+        redisSubscriber.unsubscribe(topic);
+        redisSubscriber.disconnect();
     });
 });
 
-
-redisClient.connect().then(() => {
+const startServer = async () => {
+    if (redisClient.status !== 'connecting' && redisClient.status !== 'connect') {
+        await redisClient.connect();
+    }
     console.log("Redis connected");
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);
     });
-});
+}
+
+startServer();
