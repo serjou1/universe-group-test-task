@@ -26,10 +26,13 @@ app.get('/topics/:topic', (req, res) => {
     res.setHeader('Connection', 'keep-alive');
 
     const redisSubscriber = redisClient.duplicate();
-    redisSubscriber.connect();
 
-    redisSubscriber.subscribe(topic, (message) => {
-        res.write(message);
+    redisSubscriber.subscribe(topic);
+
+    redisSubscriber.on('message', (channel, message) => {
+        if (channel !== topic) return;
+
+        res.write(`data: ${message}\n\n`);
         res.flushHeaders();
     });
 
